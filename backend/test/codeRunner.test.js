@@ -2,12 +2,14 @@ import assert from "node:assert/strict";
 import test from "node:test";
 import { executeInRunner, executeTestInRunner } from "../src/services/codeRunner.js";
 
-test("forwards only fixed Judge0 language IDs and execution limits", async () => {
+test("forwards fixed Judge0 language IDs, limits, and authentication", async () => {
   const originalFetch = global.fetch;
   const originalEnvironment = {
     JUDGE0_BASE_URL: process.env.JUDGE0_BASE_URL,
     JUDGE0_AUTH_HEADER: process.env.JUDGE0_AUTH_HEADER,
     JUDGE0_AUTH_TOKEN: process.env.JUDGE0_AUTH_TOKEN,
+    JUDGE0_RAPID_API_KEY: process.env.JUDGE0_RAPID_API_KEY,
+    JUDGE0_RAPID_API_HOST: process.env.JUDGE0_RAPID_API_HOST,
     JUDGE0_JAVASCRIPT_LANGUAGE_ID: process.env.JUDGE0_JAVASCRIPT_LANGUAGE_ID,
     JUDGE0_PYTHON_LANGUAGE_ID: process.env.JUDGE0_PYTHON_LANGUAGE_ID,
   };
@@ -16,6 +18,8 @@ test("forwards only fixed Judge0 language IDs and execution limits", async () =>
   process.env.JUDGE0_BASE_URL = "https://judge0.example";
   process.env.JUDGE0_AUTH_HEADER = "X-Auth-Token";
   process.env.JUDGE0_AUTH_TOKEN = "test-token";
+  delete process.env.JUDGE0_RAPID_API_KEY;
+  delete process.env.JUDGE0_RAPID_API_HOST;
   process.env.JUDGE0_JAVASCRIPT_LANGUAGE_ID = "63";
   process.env.JUDGE0_PYTHON_LANGUAGE_ID = "71";
   global.fetch = async (url, options) => {
@@ -74,6 +78,19 @@ test("forwards only fixed Judge0 language IDs and execution limits", async () =>
     assert.equal(testRunnerRequest.language_id, 71);
     assert.equal(testRunnerRequest.cpu_time_limit, 1);
     assert.equal(testRunnerRequest.wall_time_limit, 1.5);
+
+    process.env.JUDGE0_RAPID_API_KEY = "rapid-test-token";
+    process.env.JUDGE0_RAPID_API_HOST = "judge0.example";
+
+    await executeInRunner({
+      language: "javascript",
+      source: "console.log(2 + 3)",
+      stdin: "",
+    });
+
+    assert.equal(capturedRequest.options.headers["X-RapidAPI-Key"], "rapid-test-token");
+    assert.equal(capturedRequest.options.headers["X-RapidAPI-Host"], "judge0.example");
+    assert.equal(capturedRequest.options.headers["X-Auth-Token"], undefined);
   } finally {
     global.fetch = originalFetch;
     for (const [name, value] of Object.entries(originalEnvironment)) {

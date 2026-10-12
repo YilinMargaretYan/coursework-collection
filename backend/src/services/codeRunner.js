@@ -22,6 +22,8 @@ const languageConfiguration = {
   python: "JUDGE0_PYTHON_LANGUAGE_ID",
 };
 
+const RAPID_API_DEFAULT_HOST = "judge0-ce.p.rapidapi.com";
+
 export class RunnerConfigurationError extends Error {}
 export class RunnerUnavailableError extends Error {}
 export class RunnerResponseError extends Error {}
@@ -29,22 +31,10 @@ export class RunnerResponseError extends Error {}
 function getRunnerConfiguration(language) {
   const languageIdEnvironmentVariable = languageConfiguration[language];
   const baseUrl = process.env.JUDGE0_BASE_URL;
-  const token = process.env.JUDGE0_AUTH_TOKEN;
-  const authenticationHeader = process.env.JUDGE0_AUTH_HEADER || "X-Auth-Token";
   const languageId = Number(process.env[languageIdEnvironmentVariable]);
 
-  if (
-    !languageIdEnvironmentVariable ||
-    !baseUrl ||
-    !token ||
-    !Number.isInteger(languageId) ||
-    languageId <= 0
-  ) {
+  if (!languageIdEnvironmentVariable || !baseUrl || !Number.isInteger(languageId) || languageId <= 0) {
     throw new RunnerConfigurationError("The Judge0 runner is not configured");
-  }
-
-  if (!/^[A-Za-z0-9-]+$/.test(authenticationHeader)) {
-    throw new RunnerConfigurationError("JUDGE0_AUTH_HEADER is invalid");
   }
 
   let runnerUrl;
@@ -59,10 +49,36 @@ function getRunnerConfiguration(language) {
     throw new RunnerConfigurationError("JUDGE0_BASE_URL must use HTTP or HTTPS");
   }
 
+  const rapidApiKey = process.env.JUDGE0_RAPID_API_KEY;
+  let headers;
+
+  if (rapidApiKey) {
+    const rapidApiHost = process.env.JUDGE0_RAPID_API_HOST || RAPID_API_DEFAULT_HOST;
+
+    if (runnerUrl.hostname !== rapidApiHost) {
+      throw new RunnerConfigurationError(
+        "JUDGE0_BASE_URL must match JUDGE0_RAPID_API_HOST when using a RapidAPI key"
+      );
+    }
+
+    headers = {
+      "X-RapidAPI-Key": rapidApiKey,
+      "X-RapidAPI-Host": rapidApiHost,
+    };
+  } else {
+    const token = process.env.JUDGE0_AUTH_TOKEN;
+    const authenticationHeader = process.env.JUDGE0_AUTH_HEADER || "X-Auth-Token";
+
+    if (!token || !/^[A-Za-z0-9-]+$/.test(authenticationHeader)) {
+      throw new RunnerConfigurationError("The Judge0 runner is not configured");
+    }
+
+    headers = { [authenticationHeader]: token };
+  }
+
   return {
     endpoint: `${runnerUrl.toString().replace(/\/$/, "")}/submissions?base64_encoded=false&wait=true&fields=stdout,stderr,compile_output,message,status,time,memory`,
-    token,
-    authenticationHeader,
+    headers,
     languageId,
   };
 }
@@ -139,7 +155,7 @@ async function executeWithLimits({ language, source, stdin, limits, requestTimeo
       method: "POST",
       headers: {
         "Content-Type": "application/json",
-        [config.authenticationHeader]: config.token,
+        ...config.headers,
       },
       body: JSON.stringify({
         source_code: source,

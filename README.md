@@ -29,7 +29,7 @@ Authentication, grading, and collaboration are not implemented.
 
 ### Code runner and visible test cases
 
-![A Python code cell with standard input and visible test case controls](frontend/public/screenshots/code-runner.png)
+![A Python code cell with three passing visible test cases](frontend/public/screenshots/python-visible-tests.png)
 
 ## Stack
 
@@ -57,7 +57,7 @@ Authentication, grading, and collaboration are not implemented.
 - Current Node.js LTS and npm
 - A MongoDB connection string
 - Upstash Redis credentials (required for the application's rate limiting)
-- A managed Judge0 account and language IDs (required to execute code)
+- A Judge0-compatible code-runner configuration (required to execute code)
 - An OpenAI API key (optional; enables the Study Helper)
 
 ## Run locally
@@ -68,7 +68,7 @@ Open two PowerShell windows.
 
 ```powershell
 cd D:\Code\mern\backend
-Copy-Item .env.example .env
+New-Item -ItemType File -Path .env
 ```
 
 Open `backend\.env` and provide the required values:
@@ -79,12 +79,17 @@ MONGO_URI=your_mongodb_connection_string
 UPSTASH_REDIS_REST_URL=your_upstash_redis_url
 UPSTASH_REDIS_REST_TOKEN=your_upstash_redis_token
 
-# Required only for JavaScript/Python code execution
-JUDGE0_BASE_URL=https://your-managed-judge0-endpoint
-JUDGE0_AUTH_HEADER=X-Auth-Token
-JUDGE0_AUTH_TOKEN=your_judge0_token
-JUDGE0_JAVASCRIPT_LANGUAGE_ID=your_javascript_language_id
-JUDGE0_PYTHON_LANGUAGE_ID=your_python_language_id
+# Required only for JavaScript/Python code execution.
+# Judge0 CE via RapidAPI:
+JUDGE0_BASE_URL=https://judge0-ce.p.rapidapi.com
+JUDGE0_RAPID_API_KEY=your_rapidapi_key
+JUDGE0_RAPID_API_HOST=judge0-ce.p.rapidapi.com
+JUDGE0_JAVASCRIPT_LANGUAGE_ID=63
+JUDGE0_PYTHON_LANGUAGE_ID=71
+
+# Alternative for a self-hosted or managed Judge0 instance:
+# JUDGE0_AUTH_HEADER=X-Auth-Token
+# JUDGE0_AUTH_TOKEN=your_judge0_token
 
 # Optional: enables the AI Study Helper
 OPENAI_API_KEY=your_openai_api_key
@@ -185,7 +190,7 @@ That is expected. Start the frontend separately and visit Vite's URL, usually `h
 
 ### Code execution is not configured
 
-Complete the Judge0 fields in `backend/.env`, including the JavaScript and Python language IDs provided by your Judge0 account.
+Complete the Judge0 fields in `backend/.env`. For the Judge0 CE RapidAPI configuration shown above, use the API key from your RapidAPI app and language IDs `63` (JavaScript) and `71` (Python).
 
 ### The Study Helper is unavailable
 
